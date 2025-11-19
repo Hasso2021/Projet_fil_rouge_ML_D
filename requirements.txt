@@ -1,0 +1,33 @@
+# Core
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+python-multipart==0.0.6
+
+# ML/GenAI
+torch>=2.2.0  # Version compatible avec Python 3.12 (2.1.1 ne supporte que Python 3.8-3.11)
+torchvision>=0.17.0  # Compatible avec torch 2.2+
+diffusers>=0.25.0  # Version plus récente compatible avec torch 2.2+
+transformers>=4.36.0
+accelerate>=0.25.0
+
+# RL
+stable-baselines3==2.2.1
+gymnasium==0.29.1
+
+# Frontend
+gradio>=4.0.0
+
+# Database
+sqlalchemy>=2.0.0
+
+# Utils
+pillow==10.1.0
+numpy==1.26.2
+requests==2.31.0
+
+# Dev/Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+
