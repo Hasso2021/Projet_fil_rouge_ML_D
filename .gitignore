@@ -59,6 +59,24 @@ logs/
 .DS_Store
 Thumbs.db
 
+# Backup files
+*.backup
+*.conflict_backup
+*.bak
+*~
+
+# Test files
+test*.png
+test*.jpg
+test*.jpeg
+
+# Notebook checkpoints (Jupyter)
+.ipynb_checkpoints/
+
+# Temporary files
+*.tmp
+*.temp
+
 # Docker
 .dockerignore
 
