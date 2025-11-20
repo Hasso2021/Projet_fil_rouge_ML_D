@@ -17,10 +17,25 @@ class StableDiffusionGenerator:
             requires_safety_checker=False
         ).to(self.device)
         
-        # Optimiser avec DPM-Solver
-        self.pipe.scheduler = DPMSolverMultistepScheduler.from_config(
-            self.pipe.scheduler.config
-        )
+        # Optimiser avec DPM-Solver (gérer les configurations différentes des modèles)
+        try:
+            scheduler_config = self.pipe.scheduler.config.copy()
+            
+            # Fix pour certains modèles qui ont final_sigmas_type="zero"
+            # (ex: DreamShaper 8 avec algorithm_type="deis")
+            if hasattr(scheduler_config, 'final_sigmas_type'):
+                if scheduler_config.get('final_sigmas_type') == 'zero' and \
+                   scheduler_config.get('algorithm_type') == 'deis':
+                    scheduler_config['final_sigmas_type'] = 'sigma_min'
+            
+            # Créer le scheduler avec la config corrigée
+            self.pipe.scheduler = DPMSolverMultistepScheduler.from_config(
+                scheduler_config
+            )
+        except Exception as e:
+            # Si erreur, utiliser le scheduler par défaut du modèle
+            print(f"⚠️ Impossible de configurer DPM-Solver, utilisation du scheduler par défaut: {e}")
+            print("💡 Le modèle utilisera son scheduler par défaut (généralement aussi efficace)")
         
         # Optimisations mémoire
         if self.device == "cuda":
@@ -40,9 +55,20 @@ class StableDiffusionGenerator:
                     safety_checker=None,
                     requires_safety_checker=False
                 ).to(self.device)
-                self.pipe.scheduler = DPMSolverMultistepScheduler.from_config(
-                    self.pipe.scheduler.config
-                )
+                
+                # Configurer le scheduler (gérer les configurations différentes)
+                try:
+                    scheduler_config = self.pipe.scheduler.config.copy()
+                    if hasattr(scheduler_config, 'final_sigmas_type'):
+                        if scheduler_config.get('final_sigmas_type') == 'zero' and \
+                           scheduler_config.get('algorithm_type') == 'deis':
+                            scheduler_config['final_sigmas_type'] = 'sigma_min'
+                    self.pipe.scheduler = DPMSolverMultistepScheduler.from_config(
+                        scheduler_config
+                    )
+                except Exception as e:
+                    print(f"⚠️ Scheduler par défaut utilisé: {e}")
+                
                 self.pipe.enable_attention_slicing(1)
     
     def generate(
