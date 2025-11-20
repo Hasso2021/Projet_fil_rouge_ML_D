@@ -3,7 +3,7 @@ Modèles SQLAlchemy pour la base de données SQLite
 """
 from sqlalchemy import Column, Integer, String, Float, DateTime, Text, Boolean
 from sqlalchemy.ext.declarative import declarative_base
-from datetime import datetime
+from datetime import datetime, timezone
 
 Base = declarative_base()
 
@@ -15,7 +15,7 @@ class GeneratedImage(Base):
     
     # Colonnes principales
     id = Column(Integer, primary_key=True, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     
     # Prompts
     prompt = Column(Text, nullable=False, index=True)

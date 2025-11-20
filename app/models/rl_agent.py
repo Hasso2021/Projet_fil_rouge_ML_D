@@ -10,9 +10,10 @@ class RLOptimizer:
     Agent RL qui optimise les prompts pour Stable Diffusion.
     """
     
-    def __init__(self, env: Optional[PromptOptimizationEnv] = None):
-        self.env = env or PromptOptimizationEnv()
+    def __init__(self, env: Optional[PromptOptimizationEnv] = None, fast_mode: bool = False):
+        self.env = env or PromptOptimizationEnv(fast_mode=fast_mode)
         self.model: Optional[PPO] = None
+        self.fast_mode = fast_mode
         
         # Charger modèle si existe
         if os.path.exists(settings.RL_AGENT_PATH):
@@ -39,11 +40,13 @@ class RLOptimizer:
         """
         if self.model is None:
             # Créer nouveau modèle PPO
+            # Mode rapide : n_steps réduit de 2048 à 512 (gain de vitesse ~4x)
+            n_steps_ppo = 512 if self.fast_mode else 2048
             self.model = PPO(
                 "MlpPolicy",
                 self.env,
                 learning_rate=3e-4,
-                n_steps=2048,
+                n_steps=n_steps_ppo,
                 batch_size=64,
                 n_epochs=10,
                 gamma=0.99,
@@ -51,9 +54,12 @@ class RLOptimizer:
                 clip_range=0.2,
                 ent_coef=0.01,
                 verbose=1,
-                tensorboard_log="./logs/ppo_prompt_optimizer/"
+                tensorboard_log="./logs/ppo_prompt_optimizer/",
+                device="cpu"  # PPO fonctionne mieux sur CPU pour MlpPolicy (évite warning GPU)
             )
             print("✅ Nouveau modèle PPO créé")
+            if self.fast_mode:
+                print("⚡ Mode rapide activé: n_steps PPO réduit à 512 (au lieu de 2048)")
         
         # Callbacks
         save_path = save_path or settings.RL_AGENT_PATH
@@ -148,10 +154,10 @@ class RLOptimizer:
 # Instance globale (chargée à la demande)
 rl_optimizer: Optional[RLOptimizer] = None
 
-def get_rl_optimizer() -> RLOptimizer:
+def get_rl_optimizer(fast_mode: bool = False) -> RLOptimizer:
     """Retourne l'instance globale de l'optimiseur RL."""
     global rl_optimizer
     if rl_optimizer is None:
-        rl_optimizer = RLOptimizer()
+        rl_optimizer = RLOptimizer(fast_mode=fast_mode)
     return rl_optimizer
 

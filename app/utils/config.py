@@ -29,8 +29,9 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "sqlite:///./data/ai_creative_studio.db"
     
-    class Config:
-        env_file = ".env"
+    model_config = {
+        "env_file": ".env"
+    }
 
 settings = Settings()
 

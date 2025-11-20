@@ -13,8 +13,10 @@ class PromptOptimizationEnv(gym.Env):
     Reward: Score esthétique de l'image générée
     """
     
-    def __init__(self):
+    def __init__(self, fast_mode: bool = False):
         super().__init__()
+        
+        self.fast_mode = fast_mode
         
         # Espace d'actions : 10 keywords possibles à ajouter + 5 ajustements de params
         self.action_space = spaces.Discrete(15)
@@ -45,7 +47,8 @@ class PromptOptimizationEnv(gym.Env):
         self.base_prompt = ""
         self.current_prompt = ""
         self.guidance_scale = 7.5
-        self.num_steps = 50
+        # Mode rapide : 20 steps au lieu de 50 (gain de vitesse ~2.5x)
+        self.num_steps = 20 if fast_mode else 50
         
         # Historique des scores
         self.scores_history = []
@@ -58,7 +61,8 @@ class PromptOptimizationEnv(gym.Env):
         self.base_prompt = options.get("base_prompt", "a beautiful landscape") if options else "a beautiful landscape"
         self.current_prompt = self.base_prompt
         self.guidance_scale = 7.5
-        self.num_steps = 50
+        # Mode rapide : 20 steps au lieu de 50
+        self.num_steps = 20 if self.fast_mode else 50
         self.scores_history = []
         
         # Observation initiale
