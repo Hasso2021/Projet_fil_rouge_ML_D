@@ -13,39 +13,61 @@ from app.utils.helpers import get_output_path
 from app.database.database import SessionLocal, init_db
 from app.database.repository import ImageRepository
 
+def temperature_to_params(temperature: float):
+    """
+    Convertit la température (0-1) en paramètres optimaux.
+    
+    Temperature mapping:
+    - 0.0-0.3: Fast, basic quality (guidance=5-6, steps=30-40)
+    - 0.4-0.6: Balanced (guidance=7-8, steps=50-60)
+    - 0.7-1.0: Best quality, slower (guidance=8.5-10, steps=70-80)
+    """
+    # Clamp temperature to [0, 1]
+    temp = max(0.0, min(1.0, temperature))
+    
+    # Map temperature to guidance_scale (5.0 to 10.0)
+    guidance_scale = 5.0 + (temp * 5.0)
+    
+    # Map temperature to num_inference_steps (30 to 80)
+    num_steps = int(30 + (temp * 50))
+    
+    return guidance_scale, num_steps
+
 def generate_image(
     prompt: str,
-    negative_prompt: str = "",
-    guidance_scale: float = 7.5,
-    num_steps: int = 50,
-    width: int = 512,
-    height: int = 512,
-    seed: int = -1,
+    temperature: float = 0.7,
     use_rl_optimization: bool = False
 ):
     """
-    Génère une image avec Stable Diffusion.
+    Génère une image avec Stable Diffusion (interface simplifiée).
     
     Args:
-        prompt: Prompt textuel
-        negative_prompt: Prompt négatif
-        guidance_scale: Force d'adhésion au prompt
-        num_steps: Nombre d'étapes de débruitage
-        width: Largeur de l'image
-        height: Hauteur de l'image
-        seed: Seed pour reproductibilité (-1 = aléatoire)
-        use_rl_optimization: Utiliser l'optimisation RL
+        prompt: Prompt textuel (ex: "nano banana")
+        temperature: Qualité de l'image (0.0 = rapide, 1.0 = meilleure qualité)
+        use_rl_optimization: Utiliser l'optimisation RL (optionnel)
     
     Returns:
         tuple: (image, info_text)
     """
     try:
-        # Gestion du seed
-        seed_value = None if seed == -1 else int(seed)
+        if not prompt or not prompt.strip():
+            return None, "❌ Veuillez entrer un prompt pour générer une image."
+        
+        # Convertir température en paramètres
+        guidance_scale, num_steps = temperature_to_params(temperature)
+        
+        # Paramètres optimaux fixes
+        width = 512
+        height = 512
+        seed_value = None  # Toujours aléatoire pour plus de variété
+        
+        # Negative prompt optimisé par défaut pour meilleure qualité
+        negative_prompt = "low quality, blurry, distorted, watermark, signature, text, writing, bad anatomy, deformed, ugly, amateur"
         
         # Optimisation RL si demandée
         optimized_prompt = None
         optimization_info = ""
+        final_prompt = prompt
         
         if use_rl_optimization:
             try:
@@ -55,24 +77,21 @@ def generate_image(
                     n_iterations=10
                 )
                 optimized_prompt = optimization_result['optimized_prompt']
-                prompt = optimized_prompt
+                final_prompt = optimized_prompt
                 optimization_info = f"""
-**Optimisation RL :**
+**✨ Optimisation RL activée**
 - Prompt original : {optimization_result['original_prompt']}
 - Prompt optimisé : {optimization_result['optimized_prompt']}
-- Score original : {optimization_result['original_score']:.2f}
-- Score optimisé : {optimization_result['optimized_score']:.2f}
-- Amélioration : {optimization_result['improvement']:+.2f}
-- Paramètres optimaux : {optimization_result['best_params']}
+- Amélioration estimée : {optimization_result['improvement']:+.2f}
 """
             except Exception as e:
-                optimization_info = f"⚠️ Erreur lors de l'optimisation RL : {str(e)}\n(Vérifiez que le modèle RL est entraîné : models/rl_agent.zip)"
+                optimization_info = f"⚠️ Optimisation RL non disponible ({str(e)[:50]}...)\n💡 Génération sans optimisation RL"
         
         # Génération de l'image
         start_time = time.time()
         image = sd_generator.generate(
-            prompt=prompt,
-            negative_prompt=negative_prompt if negative_prompt else None,
+            prompt=final_prompt,
+            negative_prompt=negative_prompt,
             guidance_scale=guidance_scale,
             num_inference_steps=num_steps,
             width=width,
@@ -114,24 +133,20 @@ def generate_image(
         finally:
             db.close()
         
-        # Info textuelle
+        # Info textuelle simplifiée
+        quality_label = "Rapide" if temperature < 0.4 else "Équilibrée" if temperature < 0.7 else "Haute qualité"
+        
         info_text = f"""
-**Génération réussie !**
+**✅ Image générée avec succès !**
 
-**Paramètres :**
-- Prompt : {prompt}
-- Negative prompt : {negative_prompt if negative_prompt else "Aucun"}
-- Guidance scale : {guidance_scale}
-- Steps : {num_steps}
-- Dimensions : {width}x{height}
-- Seed : {seed_value if seed_value else "Aléatoire"}
-- Temps de génération : {generation_time:.1f}s
-
-**Score esthétique :** {score:.2f}/10
+**📝 Prompt :** {prompt}
+**🌡️ Qualité :** {quality_label} (Température: {temperature:.1f})
+**⏱️ Temps :** {generation_time:.1f} secondes
+**⭐ Score esthétique :** {score:.2f}/10
 
 {optimization_info}
 
-**Image sauvegardée :** {str(filepath)}
+💾 **Image sauvegardée automatiquement**
 """
         
         return image, info_text
@@ -184,71 +199,38 @@ with gr.Blocks(title="AI Creative Studio", theme=gr.themes.Soft()) as demo:
         """
         # 🎨 AI Creative Studio
         
-        **Générateur d'images IA avec optimisation par Reinforcement Learning**
+        **Générateur d'images IA simple et intuitif**
         
-        Générez des images de haute qualité avec Stable Diffusion et optimisez automatiquement vos prompts grâce à l'agent RL !
+        Entrez votre prompt et ajustez la qualité avec le curseur de température. C'est tout !
         """
     )
     
     with gr.Tabs():
-        # Tab 1: Génération d'images
-        with gr.Tab("🎨 Génération d'Images"):
+        # Tab 1: Génération d'images (simplifiée)
+        with gr.Tab("🎨 Générer une Image"):
             with gr.Row():
                 with gr.Column(scale=1):
                     prompt_input = gr.Textbox(
-                        label="Prompt",
-                        placeholder="a beautiful landscape with mountains and sunset",
-                        lines=3
-                    )
-                    negative_prompt_input = gr.Textbox(
-                        label="Negative Prompt (optionnel)",
-                        placeholder="blurry, low quality, distorted",
-                        lines=2
+                        label="💬 Décrivez votre image",
+                        placeholder="nano banana, highly detailed, studio lighting",
+                        lines=3,
+                        info="Exemples: 'nano banana', 'a cat in space', 'futuristic city'"
                     )
                     
-                    with gr.Row():
-                        use_rl_opt = gr.Checkbox(
-                            label="Utiliser optimisation RL",
-                            value=False,
-                            info="Optimise automatiquement le prompt avec l'agent RL"
-                        )
+                    temperature_slider = gr.Slider(
+                        label="🌡️ Qualité (Température)",
+                        minimum=0.0,
+                        maximum=1.0,
+                        value=0.7,
+                        step=0.1,
+                        info="0.0 = Rapide (30s) | 0.5 = Équilibré (1min) | 1.0 = Meilleure qualité (2-3min)"
+                    )
                     
-                    with gr.Accordion("Paramètres avancés", open=False):
-                        guidance_scale = gr.Slider(
-                            label="Guidance Scale",
-                            minimum=1.0,
-                            maximum=20.0,
-                            value=7.5,
-                            step=0.5,
-                            info="Force d'adhésion au prompt (plus élevé = plus fidèle au prompt)"
-                        )
-                        num_steps = gr.Slider(
-                            label="Nombre d'étapes",
-                            minimum=10,
-                            maximum=100,
-                            value=50,
-                            step=5,
-                            info="Plus d'étapes = meilleure qualité mais plus lent"
-                        )
-                        width = gr.Slider(
-                            label="Largeur",
-                            minimum=256,
-                            maximum=1024,
-                            value=512,
-                            step=64
-                        )
-                        height = gr.Slider(
-                            label="Hauteur",
-                            minimum=256,
-                            maximum=1024,
-                            value=512,
-                            step=64
-                        )
-                        seed = gr.Number(
-                            label="Seed",
-                            value=-1,
-                            info="-1 pour aléatoire, sinon valeur fixe pour reproductibilité"
-                        )
+                    use_rl_opt = gr.Checkbox(
+                        label="✨ Optimisation automatique du prompt (RL)",
+                        value=False,
+                        info="Améliore automatiquement votre prompt pour de meilleurs résultats"
+                    )
                     
                     generate_btn = gr.Button("🎨 Générer", variant="primary", size="lg")
                 
@@ -412,18 +394,19 @@ with gr.Blocks(title="AI Creative Studio", theme=gr.themes.Soft()) as demo:
                 2. **Optimisation RL** : Améliorez automatiquement vos prompts avec l'agent RL
                 3. **Paramètres ajustables** : Contrôlez la qualité, la taille et les paramètres de génération
                 
-                ### 🚀 Utilisation
+                ### 🚀 Utilisation Simple
                 
-                1. Entrez votre prompt dans l'onglet "Génération d'Images"
-                2. Ajustez les paramètres si nécessaire
-                3. Cochez "Utiliser optimisation RL" pour améliorer automatiquement le prompt
-                4. Cliquez sur "Générer" et attendez (~3-5 minutes sur CPU, ~10-30s sur GPU)
+                1. **Entrez votre prompt** - Décrivez l'image que vous voulez (ex: "nano banana")
+                2. **Ajustez la qualité** - Utilisez le curseur de température (0.0 = rapide, 1.0 = meilleure qualité)
+                3. **Activez l'optimisation RL** (optionnel) - Pour améliorer automatiquement votre prompt
+                4. **Générez !** - Cliquez sur "Générer" et attendez
                 
                 ### 💡 Astuces
                 
-                - Pour de meilleurs résultats, utilisez l'optimisation RL
-                - Plus d'étapes = meilleure qualité mais plus lent
-                - Le seed permet de reproduire la même image
+                - **Température basse (0.0-0.3)** : Rapide, idéale pour tester des idées (~30 secondes)
+                - **Température moyenne (0.4-0.6)** : Bon compromis qualité/vitesse (~1 minute)
+                - **Température haute (0.7-1.0)** : Meilleure qualité, plus lent (~2-3 minutes)
+                - **Optimisation RL** : Activez-la pour de meilleurs résultats automatiques
                 
                 ### ⚠️ Note importante
                 
@@ -439,12 +422,7 @@ with gr.Blocks(title="AI Creative Studio", theme=gr.themes.Soft()) as demo:
         fn=generate_image,
         inputs=[
             prompt_input,
-            negative_prompt_input,
-            guidance_scale,
-            num_steps,
-            width,
-            height,
-            seed,
+            temperature_slider,
             use_rl_opt
         ],
         outputs=[image_output, info_output]
@@ -459,18 +437,14 @@ with gr.Blocks(title="AI Creative Studio", theme=gr.themes.Soft()) as demo:
     # Exemples
     gr.Examples(
         examples=[
-            ["a beautiful landscape with mountains and sunset", "", 7.5, 50, 512, 512, -1, False],
-            ["a cat sitting on a windowsill", "blurry, low quality", 8.0, 50, 512, 512, -1, True],
-            ["futuristic city at night, neon lights, cyberpunk style", "", 9.0, 50, 512, 512, -1, False],
+            ["nano banana, highly detailed, studio lighting, macro photography", 0.8, False],
+            ["a cat in space, astronaut suit, stars in background", 0.7, True],
+            ["futuristic city at night, neon lights, cyberpunk style", 0.9, False],
+            ["beautiful landscape with mountains and sunset, cinematic", 0.6, False],
         ],
         inputs=[
             prompt_input,
-            negative_prompt_input,
-            guidance_scale,
-            num_steps,
-            width,
-            height,
-            seed,
+            temperature_slider,
             use_rl_opt
         ]
     )
