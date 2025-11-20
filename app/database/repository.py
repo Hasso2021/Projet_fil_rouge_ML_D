@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 from typing import List, Optional
 from datetime import datetime
-from app.database.models import GeneratedImage
+from app.database.models import GeneratedImage, UserFeedback
 
 class ImageRepository:
     """Repository pour gérer les images générées"""
@@ -135,4 +135,71 @@ class ImageRepository:
             db.commit()
             return True
         return False
+
+
+class FeedbackRepository:
+    """Repository pour gérer les feedbacks utilisateur"""
+    
+    @staticmethod
+    def create(
+        db: Session,
+        generation_id: int,
+        score: float,
+        comment: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> UserFeedback:
+        """Crée un nouveau feedback utilisateur"""
+        # Vérifier que la génération existe
+        image = ImageRepository.get_by_id(db=db, image_id=generation_id)
+        if not image:
+            raise ValueError(f"Generation {generation_id} not found")
+        
+        feedback = UserFeedback(
+            generation_id=generation_id,
+            score=score,
+            comment=comment,
+            user_id=user_id,
+        )
+        db.add(feedback)
+        db.commit()
+        db.refresh(feedback)
+        return feedback
+    
+    @staticmethod
+    def get_by_id(db: Session, feedback_id: int) -> Optional[UserFeedback]:
+        """Récupère un feedback par son ID"""
+        return db.query(UserFeedback).filter(UserFeedback.id == feedback_id).first()
+    
+    @staticmethod
+    def get_by_generation_id(db: Session, generation_id: int) -> List[UserFeedback]:
+        """Récupère tous les feedbacks pour une génération"""
+        return db.query(UserFeedback).filter(
+            UserFeedback.generation_id == generation_id
+        ).order_by(desc(UserFeedback.created_at)).all()
+    
+    @staticmethod
+    def get_all(
+        db: Session,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> List[UserFeedback]:
+        """Récupère tous les feedbacks avec pagination"""
+        return db.query(UserFeedback).order_by(
+            desc(UserFeedback.created_at)
+        ).offset(skip).limit(limit).all()
+    
+    @staticmethod
+    def get_statistics(db: Session) -> dict:
+        """Récupère les statistiques des feedbacks"""
+        total = db.query(func.count(UserFeedback.id)).scalar()
+        avg_score = db.query(func.avg(UserFeedback.score)).scalar()
+        max_score = db.query(func.max(UserFeedback.score)).scalar()
+        min_score = db.query(func.min(UserFeedback.score)).scalar()
+        
+        return {
+            "total_feedbacks": total or 0,
+            "average_score": round(avg_score, 2) if avg_score else None,
+            "max_score": max_score,
+            "min_score": min_score,
+        }
 

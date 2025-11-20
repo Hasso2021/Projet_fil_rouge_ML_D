@@ -56,3 +56,35 @@ class GeneratedImage(Base):
             "use_rl_optimization": self.use_rl_optimization,
         }
 
+
+class UserFeedback(Base):
+    """
+    Modèle pour stocker les feedbacks utilisateur sur les images générées
+    """
+    __tablename__ = "user_feedbacks"
+    
+    # Colonnes principales
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    
+    # Relation avec GeneratedImage
+    generation_id = Column(Integer, nullable=False, index=True)
+    
+    # Feedback utilisateur
+    score = Column(Float, nullable=False)  # Score 0-1 (ou 0-10)
+    comment = Column(Text, nullable=True)
+    
+    # Métadonnées optionnelles
+    user_id = Column(String(100), nullable=True, index=True)  # Pour tracking multi-utilisateurs
+    
+    def to_dict(self):
+        """Convertit l'objet en dictionnaire"""
+        return {
+            "id": self.id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "generation_id": self.generation_id,
+            "score": self.score,
+            "comment": self.comment,
+            "user_id": self.user_id,
+        }
+
