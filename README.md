@@ -237,15 +237,34 @@ Pour meilleure qualité, modifier dans Colab :
 TOTAL_TIMESTEPS = 10000  # Au lieu de 2500
 ```
 
-### Entraînement Local (Optionnel)
+### Entraînement Local (CPU - Recommandé si Colab s'arrête)
+
+**⚡ Mode rapide activé par défaut** (3-5x plus rapide sur CPU) :
 
 ```bash
-# Entraînement de base (2500 steps, ~10-20 heures sur CPU)
-python training/train_rl_agent.py
+# Entraînement rapide (2500 steps, ~2-4 heures sur CPU avec fast_mode)
+python training/train_rl_agent.py --total_timesteps 2500
 
-# Avec options personnalisées
-python training/train_rl_agent.py --total_timesteps 10000 --save_path models/rl_agent.zip
+# Entraînement complet (5000 steps, ~4-8 heures sur CPU avec fast_mode)
+python training/train_rl_agent.py --total_timesteps 5000
+
+# Entraînement qualité maximale (10000 steps, ~8-16 heures sur CPU avec fast_mode)
+python training/train_rl_agent.py --total_timesteps 10000
+
+# Désactiver fast_mode pour meilleure qualité (plus lent - seulement si vous avez le temps)
+python training/train_rl_agent.py --total_timesteps 5000 --no-fast_mode
 ```
+
+**💡 Recommandations pour CPU (16GB RAM)** :
+- ✅ **Utilisez `fast_mode`** (activé par défaut) : 3-5x plus rapide
+- ✅ **Commencez avec 2500 steps** : ~2-4 heures, bon compromis qualité/vitesse
+- ✅ **L'entraînement peut être arrêté avec Ctrl+C** : checkpoints sauvegardés automatiquement
+- ✅ **Vérifiez `.env`** : `SD_DEVICE=cpu` et `SD_DTYPE=float32`
+
+**⏱️ Temps estimés (CPU, fast_mode activé)** :
+- 2500 steps : ~2-4 heures
+- 5000 steps : ~4-8 heures  
+- 10000 steps : ~8-16 heures
 
 ## 🎨 Qualité Artistique
 
