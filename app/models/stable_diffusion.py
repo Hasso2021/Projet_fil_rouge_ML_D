@@ -34,8 +34,8 @@ class StableDiffusionGenerator:
             )
         except Exception as e:
             # Si erreur, utiliser le scheduler par défaut du modèle
-            print(f"⚠️ Impossible de configurer DPM-Solver, utilisation du scheduler par défaut: {e}")
-            print("💡 Le modèle utilisera son scheduler par défaut (généralement aussi efficace)")
+            print(f"WARNING: Impossible de configurer DPM-Solver, utilisation du scheduler par defaut: {e}")
+            print("INFO: Le modele utilisera son scheduler par defaut (generalement aussi efficace)")
         
         # Optimisations mémoire
         if self.device == "cuda":
@@ -46,7 +46,7 @@ class StableDiffusionGenerator:
             self.pipe.enable_attention_slicing(1)  # Attention slicing aussi sur CPU
             # CPU mode : utiliser float32 pour compatibilité et stabilité
             if self.dtype == torch.float16:
-                print("⚠️ float16 sur CPU non recommandé, passage à float32 pour compatibilité")
+                print("WARNING: float16 sur CPU non recommande, passage a float32 pour compatibilite")
                 self.dtype = torch.float32
                 # Recharger avec float32
                 self.pipe = StableDiffusionPipeline.from_pretrained(
@@ -67,7 +67,7 @@ class StableDiffusionGenerator:
                         scheduler_config
                     )
                 except Exception as e:
-                    print(f"⚠️ Scheduler par défaut utilisé: {e}")
+                    print(f"WARNING: Scheduler par defaut utilise: {e}")
                 
                 self.pipe.enable_attention_slicing(1)
     

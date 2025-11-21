@@ -19,14 +19,14 @@ class RLOptimizer:
         if os.path.exists(settings.RL_AGENT_PATH):
             try:
                 self.model = PPO.load(settings.RL_AGENT_PATH, env=self.env)
-                print(f"✅ Modèle RL chargé depuis {settings.RL_AGENT_PATH}")
+                print(f"OK: Modele RL charge depuis {settings.RL_AGENT_PATH}")
             except Exception as e:
-                print(f"⚠️ Erreur lors du chargement du modèle RL: {e}")
-                print(f"💡 Vérifiez que le modèle existe et est compatible avec stable-baselines3==2.2.1")
+                print(f"WARNING: Erreur lors du chargement du modele RL: {e}")
+                print(f"INFO: Verifiez que le modele existe et est compatible avec stable-baselines3==2.2.1")
                 self.model = None
         else:
             print(f"ℹ️ Modèle RL non trouvé à {settings.RL_AGENT_PATH}")
-            print(f"💡 Entraînez d'abord le modèle avec training/train_rl_agent.py")
+            print(f"INFO: Entrainez d'abord le modele avec training/train_rl_agent.py")
             print(f"   ou téléchargez-le depuis Colab (voir WORKFLOW_HYBRIDE.md)")
             self.model = None
     
@@ -57,7 +57,7 @@ class RLOptimizer:
                 tensorboard_log="./logs/ppo_prompt_optimizer/",
                 device="cpu"  # PPO fonctionne mieux sur CPU pour MlpPolicy (évite warning GPU)
             )
-            print("✅ Nouveau modèle PPO créé")
+            print("OK: Nouveau modele PPO cree")
             if self.fast_mode:
                 print("⚡ Mode rapide activé: n_steps PPO réduit à 512 (au lieu de 2048)")
         
@@ -71,7 +71,7 @@ class RLOptimizer:
             name_prefix="ppo_prompt_opt"
         )
         
-        print(f"🚀 Démarrage entraînement PPO ({total_timesteps} steps)...")
+        print(f"Demarrage entrainement PPO ({total_timesteps} steps)...")
         self.model.learn(
             total_timesteps=total_timesteps,
             callback=checkpoint_callback,
@@ -80,7 +80,7 @@ class RLOptimizer:
         
         # Sauvegarde finale
         self.model.save(save_path)
-        print(f"✅ Entraînement terminé et modèle sauvegardé dans {save_path}")
+        print(f"OK: Entrainement termine et modele sauvegarde dans {save_path}")
     
     def optimize_prompt(
         self,

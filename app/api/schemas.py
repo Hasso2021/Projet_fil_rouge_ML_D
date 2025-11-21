@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from typing import Optional, Dict
-from app.utils.prompt_templates import UseCase
 
 class GenerateRequest(BaseModel):
     prompt: str

@@ -24,7 +24,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def init_db():
     """Initialise la base de données (crée les tables)"""
     Base.metadata.create_all(bind=engine)
-    print(f"✅ Base de données initialisée : {settings.DATABASE_URL}")
+    print(f"OK: Base de donnees initialisee : {settings.DATABASE_URL}")
 
 def get_db() -> Session:
     """

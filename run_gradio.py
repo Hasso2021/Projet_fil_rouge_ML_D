@@ -9,14 +9,14 @@ if __name__ == "__main__":
     # Initialiser la base de données
     init_db()
     
-    print("🚀 Lancement de l'interface Gradio...")
-    print("📡 L'interface sera accessible sur: http://localhost:7860")
-    print("📊 Base de données SQLite initialisée")
-    print("📚 Fermez avec Ctrl+C")
+    print("Lancement de l'interface Gradio...")
+    print("L'interface sera accessible sur: http://localhost:7860")
+    print("Base de donnees SQLite initialisee")
+    print("Fermez avec Ctrl+C")
     
     demo.launch(
         server_name="0.0.0.0",
-        server_port=7860,
-        share=False  # Mettre à True pour créer un lien public (gradio.app)
+        server_port=7861,
+        share=True  # Mettre à True pour créer un lien public (gradio.app)
     )
 

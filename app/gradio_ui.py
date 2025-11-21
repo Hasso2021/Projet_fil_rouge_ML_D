@@ -10,6 +10,7 @@ from app.models.stable_diffusion import sd_generator
 from app.models.aesthetic_scorer import aesthetic_scorer
 from app.models.rl_agent import get_rl_optimizer
 from app.utils.helpers import get_output_path
+from app.utils.prompt_templates import apply_prompt_template, get_available_use_cases, get_available_styles
 from app.database.database import SessionLocal, init_db
 from app.database.repository import ImageRepository
 
@@ -35,6 +36,8 @@ def temperature_to_params(temperature: float):
 
 def generate_image(
     prompt: str,
+    use_case: str = None,
+    style: str = "general",
     temperature: float = 0.7,
     use_rl_optimization: bool = False
 ):
@@ -43,49 +46,67 @@ def generate_image(
     
     Args:
         prompt: Prompt textuel (ex: "nano banana")
+        use_case: Cas d'usage ("logo", "marketing", "game_assets", "artistic", ou None)
+        style: Style spécifique du cas d'usage
         temperature: Qualité de l'image (0.0 = rapide, 1.0 = meilleure qualité)
-        use_rl_optimization: Utiliser l'optimisation RL (optionnel)
+        use_rl_optimization: Utiliser l'optimisation RL (optionnel, désactivé pour le moment)
     
     Returns:
         tuple: (image, info_text)
     """
     try:
         if not prompt or not prompt.strip():
-            return None, "❌ Veuillez entrer un prompt pour générer une image."
+            return None, "ERREUR: Veuillez entrer un prompt pour generer une image."
         
-        # Convertir température en paramètres
-        guidance_scale, num_steps = temperature_to_params(temperature)
+        # Appliquer le template selon use_case et style
+        template_prompt, template_negative_prompt, template_params = apply_prompt_template(
+            base_prompt=prompt,
+            use_case=use_case if use_case and use_case != "general" else None,
+            style=style if style != "general" else "general"
+        )
         
-        # Paramètres optimaux fixes
-        width = 512
-        height = 512
+        # Convertir température en paramètres (override si use_case spécifié)
+        temp_guidance_scale, temp_num_steps = temperature_to_params(temperature)
+        
+        # Utiliser les paramètres du template si use_case est spécifié, sinon utiliser température
+        if use_case and use_case != "general":
+            guidance_scale = template_params.get("guidance_scale", temp_guidance_scale)
+            num_steps = template_params.get("num_inference_steps", temp_num_steps)
+            width = template_params.get("width", 512)
+            height = template_params.get("height", 512)
+            negative_prompt = template_negative_prompt
+            final_prompt = template_prompt
+            template_info = f"**🎨 Template appliqué** : {use_case} - {style}"
+        else:
+            guidance_scale = temp_guidance_scale
+            num_steps = temp_num_steps
+            width = 512
+            height = 512
+            negative_prompt = template_negative_prompt
+            final_prompt = template_prompt
+            template_info = ""
+        
         seed_value = None  # Toujours aléatoire pour plus de variété
         
-        # Negative prompt optimisé par défaut pour meilleure qualité
-        negative_prompt = "low quality, blurry, distorted, watermark, signature, text, writing, bad anatomy, deformed, ugly, amateur"
-        
-        # Optimisation RL si demandée
-        optimized_prompt = None
+        # Optimisation RL désactivée pour le moment
         optimization_info = ""
-        final_prompt = prompt
-        
-        if use_rl_optimization:
-            try:
-                rl_optimizer = get_rl_optimizer()
-                optimization_result = rl_optimizer.optimize_prompt(
-                    base_prompt=prompt,
-                    n_iterations=10
-                )
-                optimized_prompt = optimization_result['optimized_prompt']
-                final_prompt = optimized_prompt
-                optimization_info = f"""
-**✨ Optimisation RL activée**
-- Prompt original : {optimization_result['original_prompt']}
-- Prompt optimisé : {optimization_result['optimized_prompt']}
-- Amélioration estimée : {optimization_result['improvement']:+.2f}
-"""
-            except Exception as e:
-                optimization_info = f"⚠️ Optimisation RL non disponible ({str(e)[:50]}...)\n💡 Génération sans optimisation RL"
+        # if use_rl_optimization:
+        #     try:
+        #         rl_optimizer = get_rl_optimizer()
+        #         optimization_result = rl_optimizer.optimize_prompt(
+        #             base_prompt=final_prompt,
+        #             n_iterations=10
+        #         )
+        #         optimized_prompt = optimization_result['optimized_prompt']
+        #         final_prompt = optimized_prompt
+        #         optimization_info = f"""
+        # **✨ Optimisation RL activée**
+        # - Prompt original : {optimization_result['original_prompt']}
+        # - Prompt optimisé : {optimization_result['optimized_prompt']}
+        # - Amélioration estimée : {optimization_result['improvement']:+.2f}
+        # """
+        #     except Exception as e:
+        #         optimization_info = f"⚠️ Optimisation RL non disponible ({str(e)[:50]}...)\n💡 Génération sans optimisation RL"
         
         # Génération de l'image
         start_time = time.time()
@@ -105,7 +126,7 @@ def generate_image(
         timestamp = int(time.time())
         filename = f"generated_{timestamp}.png"
         filepath = output_dir / filename
-        image.save(filepath)
+        image.save(str(filepath))
         
         # Calculer le score esthétique
         score = aesthetic_scorer.score(image)
@@ -115,10 +136,10 @@ def generate_image(
         try:
             ImageRepository.create(
                 db=db,
-                prompt=prompt,
+                prompt=prompt,  # Prompt original de l'utilisateur
                 image_path=str(filepath),
                 negative_prompt=negative_prompt if negative_prompt else None,
-                optimized_prompt=optimized_prompt,
+                optimized_prompt=final_prompt,  # Prompt final utilisé
                 guidance_scale=guidance_scale,
                 num_inference_steps=num_steps,
                 width=width,
@@ -126,10 +147,10 @@ def generate_image(
                 seed=seed_value,
                 score=score,
                 generation_time=generation_time,
-                use_rl_optimization=use_rl_optimization,
+                use_rl_optimization=False,  # Désactivé pour le moment
             )
         except Exception as e:
-            print(f"⚠️ Erreur lors de la sauvegarde en base de données: {e}")
+            print(f"WARNING: Erreur lors de la sauvegarde en base de donnees: {e}")
         finally:
             db.close()
         
@@ -139,10 +160,12 @@ def generate_image(
         info_text = f"""
 **✅ Image générée avec succès !**
 
-**📝 Prompt :** {prompt}
+**📝 Prompt original :** {prompt}
+{template_info}
 **🌡️ Qualité :** {quality_label} (Température: {temperature:.1f})
 **⏱️ Temps :** {generation_time:.1f} secondes
 **⭐ Score esthétique :** {score:.2f}/10
+**📐 Dimensions :** {width}x{height}
 
 {optimization_info}
 
@@ -191,7 +214,7 @@ def optimize_prompt_only(prompt: str, n_iterations: int = 10):
         return info_text
         
     except Exception as e:
-        return f"❌ Erreur lors de l'optimisation : {str(e)}\n(Vérifiez que le modèle RL est entraîné : models/rl_agent.zip)"
+        return f"ERREUR: Erreur lors de l'optimisation : {str(e)}\n(Verifiez que le modele RL est entraine : models/rl_agent.zip)"
 
 # Interface Gradio
 with gr.Blocks(title="AI Creative Studio", theme=gr.themes.Soft()) as demo:
@@ -217,6 +240,25 @@ with gr.Blocks(title="AI Creative Studio", theme=gr.themes.Soft()) as demo:
                         info="Exemples: 'nano banana', 'a cat in space', 'futuristic city'"
                     )
                     
+                    use_case_dropdown = gr.Dropdown(
+                        label="🎯 Cas d'usage",
+                        choices=["general", "logo", "marketing", "game_assets", "artistic"],
+                        value="general",
+                        interactive=True,
+                        allow_custom_value=False,
+                        info="Sélectionnez un cas d'usage pour appliquer un template optimisé"
+                    )
+                    
+                    style_dropdown = gr.Dropdown(
+                        label="✨ Style",
+                        choices=["general"],
+                        value="general",
+                        visible=False,
+                        interactive=True,
+                        allow_custom_value=False,
+                        info="Style spécifique du cas d'usage sélectionné"
+                    )
+                    
                     temperature_slider = gr.Slider(
                         label="🌡️ Qualité (Température)",
                         minimum=0.0,
@@ -227,9 +269,10 @@ with gr.Blocks(title="AI Creative Studio", theme=gr.themes.Soft()) as demo:
                     )
                     
                     use_rl_opt = gr.Checkbox(
-                        label="✨ Optimisation automatique du prompt (RL)",
+                        label="✨ Optimisation automatique du prompt (RL) - Désactivé pour le moment",
                         value=False,
-                        info="Améliore automatiquement votre prompt pour de meilleurs résultats"
+                        info="Fonctionnalité RL mise de côté pour le moment",
+                        interactive=False
                     )
                     
                     generate_btn = gr.Button("🎨 Générer", variant="primary", size="lg")
@@ -338,7 +381,7 @@ with gr.Blocks(title="AI Creative Studio", theme=gr.themes.Soft()) as demo:
 """
                     return history_text
                 except Exception as e:
-                    return f"❌ Erreur lors du chargement de l'historique : {str(e)}"
+                    return f"ERREUR: Erreur lors du chargement de l'historique : {str(e)}"
                 finally:
                     db.close()
             
@@ -371,7 +414,7 @@ with gr.Blocks(title="AI Creative Studio", theme=gr.themes.Soft()) as demo:
 """
                     return stats_text
                 except Exception as e:
-                    return f"❌ Erreur lors du chargement des statistiques : {str(e)}"
+                    return f"ERREUR: Erreur lors du chargement des statistiques : {str(e)}"
                 finally:
                     db.close()
             
@@ -417,11 +460,27 @@ with gr.Blocks(title="AI Creative Studio", theme=gr.themes.Soft()) as demo:
                 """
             )
     
+    # Fonction pour mettre à jour les styles selon le cas d'usage
+    def update_styles(use_case):
+        if use_case and use_case != "general":
+            styles = get_available_styles(use_case)
+            return gr.update(choices=styles, value=styles[0] if styles else "general", visible=True, interactive=True)
+        else:
+            return gr.update(choices=["general"], value="general", visible=False, interactive=True)
+    
     # Events
+    use_case_dropdown.change(
+        fn=update_styles,
+        inputs=[use_case_dropdown],
+        outputs=[style_dropdown]
+    )
+    
     generate_btn.click(
         fn=generate_image,
         inputs=[
             prompt_input,
+            use_case_dropdown,
+            style_dropdown,
             temperature_slider,
             use_rl_opt
         ],
@@ -434,16 +493,19 @@ with gr.Blocks(title="AI Creative Studio", theme=gr.themes.Soft()) as demo:
         outputs=[optimize_output]
     )
     
-    # Exemples
+    # Exemples (les styles seront mis à jour dynamiquement selon le use_case)
     gr.Examples(
         examples=[
-            ["nano banana, highly detailed, studio lighting, macro photography", 0.8, False],
-            ["a cat in space, astronaut suit, stars in background", 0.7, True],
-            ["futuristic city at night, neon lights, cyberpunk style", 0.9, False],
-            ["beautiful landscape with mountains and sunset, cinematic", 0.6, False],
+            ["a cat logo", "logo", "general", 0.8, False],
+            ["product promotion banner", "marketing", "general", 0.7, False],
+            ["sword game asset", "game_assets", "general", 0.9, False],
+            ["beautiful landscape", "artistic", "general", 0.8, False],
+            ["nano banana, highly detailed, studio lighting", "general", "general", 0.8, False],
         ],
         inputs=[
             prompt_input,
+            use_case_dropdown,
+            style_dropdown,
             temperature_slider,
             use_rl_opt
         ]

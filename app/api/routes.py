@@ -13,6 +13,7 @@ from app.models.aesthetic_scorer import aesthetic_scorer
 from app.models.rl_agent import get_rl_optimizer
 from app.utils.config import settings
 from app.utils.helpers import get_output_path
+from app.utils.prompt_templates import apply_prompt_template, get_available_use_cases, get_available_styles
 from app.database.database import get_db
 from app.database.repository import ImageRepository
 
@@ -23,37 +24,52 @@ async def generate_image(request: GenerateRequest, db: Session = Depends(get_db)
     """
     Génère une image avec Stable Diffusion.
     
+    Si use_case et style sont fournis, applique le template approprié.
     Si use_rl_optimization=True, l'agent RL optimise d'abord le prompt.
     """
     try:
-        prompt = request.prompt
+        # Appliquer le template selon use_case et style
+        template_prompt, template_negative_prompt, template_params = apply_prompt_template(
+            base_prompt=request.prompt,
+            use_case=request.use_case,
+            style=request.style or "general"
+        )
+        
+        # Utiliser les valeurs du template si non spécifiées dans la requête
+        final_prompt = template_prompt
+        final_negative_prompt = request.negative_prompt or template_negative_prompt
+        final_guidance_scale = request.guidance_scale or template_params.get("guidance_scale", 7.5)
+        final_num_steps = request.num_inference_steps or template_params.get("num_inference_steps", 50)
+        final_width = request.width or template_params.get("width", 512)
+        final_height = request.height or template_params.get("height", 512)
+        
         optimized_prompt = None
         score = None
         
-        # Optimisation RL du prompt (optionnel)
-        if request.use_rl_optimization:
-            try:
-                rl_optimizer = get_rl_optimizer()
-                optimization_result = rl_optimizer.optimize_prompt(
-                    base_prompt=prompt,
-                    n_iterations=10
-                )
-                optimized_prompt = optimization_result['optimized_prompt']
-                prompt = optimized_prompt
-            except Exception as e:
-                # Si l'optimisation RL échoue, continuer sans optimisation
-                print(f"⚠️ Erreur lors de l'optimisation RL: {e}")
-                optimized_prompt = None
+        # Optimisation RL du prompt (optionnel) - mettre de côté pour le moment
+        # if request.use_rl_optimization:
+        #     try:
+        #         rl_optimizer = get_rl_optimizer()
+        #         optimization_result = rl_optimizer.optimize_prompt(
+        #             base_prompt=final_prompt,
+        #             n_iterations=10
+        #         )
+        #         optimized_prompt = optimization_result['optimized_prompt']
+        #         final_prompt = optimized_prompt
+        #     except Exception as e:
+        #         # Si l'optimisation RL échoue, continuer sans optimisation
+        #         print(f"WARNING: Erreur lors de l'optimisation RL: {e}")
+        #         optimized_prompt = None
         
         # Génération de l'image
         start_time = time.time()
         image = sd_generator.generate(
-            prompt=prompt,
-            negative_prompt=request.negative_prompt,
-            guidance_scale=request.guidance_scale,
-            num_inference_steps=request.num_inference_steps,
-            width=request.width,
-            height=request.height,
+            prompt=final_prompt,
+            negative_prompt=final_negative_prompt,
+            guidance_scale=final_guidance_scale,
+            num_inference_steps=final_num_steps,
+            width=final_width,
+            height=final_height,
             seed=request.seed
         )
         
@@ -62,7 +78,7 @@ async def generate_image(request: GenerateRequest, db: Session = Depends(get_db)
         timestamp = int(time.time())
         filename = f"generated_{timestamp}.png"
         filepath = output_dir / filename
-        image.save(filepath)
+        image.save(str(filepath))
         
         # Calculer score
         score = aesthetic_scorer.score(image)
@@ -72,31 +88,31 @@ async def generate_image(request: GenerateRequest, db: Session = Depends(get_db)
         try:
             ImageRepository.create(
                 db=db,
-                prompt=request.prompt,
+                prompt=request.prompt,  # Prompt original de l'utilisateur
                 image_path=str(filepath),
-                negative_prompt=request.negative_prompt,
-                optimized_prompt=optimized_prompt,
-                guidance_scale=request.guidance_scale,
-                num_inference_steps=request.num_inference_steps,
-                width=request.width,
-                height=request.height,
+                negative_prompt=final_negative_prompt,
+                optimized_prompt=final_prompt,  # Prompt final utilisé (template ou optimisé)
+                guidance_scale=final_guidance_scale,
+                num_inference_steps=final_num_steps,
+                width=final_width,
+                height=final_height,
                 seed=request.seed,
                 score=score,
                 generation_time=generation_time,
                 use_rl_optimization=request.use_rl_optimization,
             )
         except Exception as e:
-            print(f"⚠️ Erreur lors de la sauvegarde en base de données: {e}")
+            print(f"WARNING: Erreur lors de la sauvegarde en base de donnees: {e}")
         
         return GenerateResponse(
             message="Image generated successfully",
             prompt=request.prompt,
-            optimized_prompt=optimized_prompt,
+            optimized_prompt=final_prompt,  # Prompt final utilisé
             parameters={
-                "guidance_scale": request.guidance_scale,
-                "num_steps": request.num_inference_steps,
-                "width": request.width,
-                "height": request.height,
+                "guidance_scale": final_guidance_scale,
+                "num_steps": final_num_steps,
+                "width": final_width,
+                "height": final_height,
                 "seed": request.seed
             },
             score=score,
@@ -237,6 +253,30 @@ async def delete_image(image_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/use-cases")
+async def get_use_cases():
+    """Retourne la liste des cas d'usage disponibles et leurs styles."""
+    use_cases = get_available_use_cases()
+    result = {}
+    for uc in use_cases:
+        if uc != "general":
+            result[uc] = {
+                "styles": get_available_styles(uc),
+                "description": {
+                    "logo": "Design de logos automatique : Génère des variations de logos et apprend quels styles fonctionnent le mieux",
+                    "marketing": "Créateur de visuels marketing : Produit des bannières/posts et optimise selon l'engagement",
+                    "game_assets": "Générateur de game assets : Crée des textures/sprites et apprend des choix du game designer",
+                    "artistic": "Assistant artistique : Génère des concepts visuels et s'adapte au style préféré de l'artiste"
+                }.get(uc, "")
+            }
+    return {
+        "use_cases": result,
+        "general": {
+            "styles": ["general"],
+            "description": "Génération générale sans template spécifique"
+        }
+    }
+
 @router.get("/")
 async def root():
     """Root endpoint avec instructions."""
@@ -245,7 +285,8 @@ async def root():
         "docs": "/docs",
         "endpoints": {
             "/generate": "Generate images with Stable Diffusion",
-            "/optimize": "Optimize prompts using RL agent",
+            "/optimize": "Optimize prompts using RL agent (disabled for now)",
+            "/use-cases": "Get available use cases and styles",
             "/history": "Get generation history",
             "/images/{id}": "Get image metadata by ID",
             "/search": "Search images by prompt",

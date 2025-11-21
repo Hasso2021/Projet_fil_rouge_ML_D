@@ -29,9 +29,9 @@ async def startup_event():
     """Actions au démarrage de l'API."""
     # Initialiser la base de données
     init_db()
-    print(f"🚀 {settings.API_TITLE} v{settings.API_VERSION} starting...")
-    print(f"📡 Listening on {settings.API_HOST}:{settings.API_PORT}")
-    print(f"📚 Docs available at http://{settings.API_HOST}:{settings.API_PORT}/docs")
+    print(f"{settings.API_TITLE} v{settings.API_VERSION} starting...")
+    print(f"Listening on {settings.API_HOST}:{settings.API_PORT}")
+    print(f"Docs available at http://{settings.API_HOST}:{settings.API_PORT}/docs")
 
 @app.on_event("shutdown")
 async def shutdown_event():
