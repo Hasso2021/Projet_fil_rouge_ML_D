@@ -270,20 +270,22 @@ python training/train_rl_agent.py --total_timesteps 5000 --no-fast_mode
 
 ### Modèle Stable Diffusion Actuel
 
-**Configuration par défaut** : `runwayml/stable-diffusion-v1-5`
-- ✅ Bon pour démarrer
-- ⚠️ Généraliste, pas spécialisé art
+**Configuration par défaut** : `Lykon/dreamshaper-8` ✨
+- 🎨 Spécialisé styles artistiques
+- ✅ Meilleure qualité visuelle que SD 1.5
+- ✅ Plus rapide et plus performant
+- ✅ Styles variés (réaliste, fantastique, art conceptuel)
+- 💾 Taille: ~4GB (compatible avec la plupart des configurations)
 
-### Modèles Recommandés pour Art
+### Autres Modèles Disponibles
 
-**DreamShaper (Recommandé pour art)** :
+**Stable Diffusion 1.5 (Basique)** :
 ```bash
 # Dans .env
-SD_MODEL_ID=lykon/dreamshaper-8
+SD_MODEL_ID=runwayml/stable-diffusion-v1-5
 ```
-- 🎨 Spécialisé styles artistiques
-- ✅ Meilleure qualité visuelle
-- ✅ Styles variés (réaliste, fantastique, etc.)
+- ✅ Bon pour démarrer
+- ⚠️ Généraliste, moins performant que DreamShaper
 
 **Autres options** :
 - `SG161222/Realistic_Vision_V5.1_noVAE` : Art photoréaliste

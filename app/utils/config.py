@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     API_PORT: int = 8000
     
     # Stable Diffusion
-    SD_MODEL_ID: str = "runwayml/stable-diffusion-v1-5"
+    SD_MODEL_ID: str = "Lykon/dreamshaper-8"  # Modèle plus puissant et rapide que SD 1.5
     SD_DEVICE: str = "cuda"  # ou "cpu"
     SD_DTYPE: str = "float16"  # ou "float32"
     
