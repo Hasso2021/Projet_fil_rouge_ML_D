@@ -241,16 +241,29 @@ def apply_prompt_template(
     Returns:
         tuple: (prompt optimisé, negative_prompt, paramètres recommandés)
     """
-    # Si pas de use_case ou "general", retourner prompt de base avec paramètres par défaut
+    # Si pas de use_case ou "general", enrichir automatiquement les prompts simples
     if not use_case or use_case == UseCase.GENERAL:
-        negative_prompt = "low quality, blurry, distorted, watermark, signature, text, bad anatomy"
+        # Enrichir automatiquement les prompts simples
+        enriched_prompt = base_prompt.strip()
+        
+        # Si le prompt est très court (< 15 caractères), l'enrichir avec des keywords de qualité
+        if len(enriched_prompt) < 15:
+            enriched_prompt = f"{enriched_prompt}, highly detailed, professional quality, sharp focus, beautiful lighting"
+        # Si le prompt ne contient pas de keywords de qualité, en ajouter quelques-uns
+        elif not any(word in enriched_prompt.lower() for word in ["detailed", "quality", "professional", "sharp", "beautiful", "stunning", "high"]):
+            enriched_prompt = f"{enriched_prompt}, high quality, detailed"
+        
+        # Negative prompt plus fort pour DreamShaper-8
+        negative_prompt = "ugly, blurry, low quality, distorted, deformed, bad anatomy, bad proportions, watermark, signature, text, worst quality, low res, error, cropped"
+        
+        # Paramètres optimisés pour DreamShaper-8 sur CPU
         params = {
-            "guidance_scale": 7.5,
-            "num_inference_steps": 50,
+            "guidance_scale": 7.0,  # DreamShaper fonctionne bien avec 7-8
+            "num_inference_steps": 35,  # Réduit de 50 à 35 pour CPU
             "width": 512,
             "height": 512
         }
-        return base_prompt, negative_prompt, params
+        return enriched_prompt, negative_prompt, params
     
     # Normaliser use_case
     use_case = use_case.lower()

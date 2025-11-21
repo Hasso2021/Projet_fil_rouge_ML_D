@@ -18,19 +18,19 @@ def temperature_to_params(temperature: float):
     """
     Convertit la température (0-1) en paramètres optimaux.
     
-    Temperature mapping:
-    - 0.0-0.3: Fast, basic quality (guidance=5-6, steps=30-40)
-    - 0.4-0.6: Balanced (guidance=7-8, steps=50-60)
-    - 0.7-1.0: Best quality, slower (guidance=8.5-10, steps=70-80)
+    Temperature mapping (optimisé pour CPU/DreamShaper-8):
+    - 0.0-0.3: Fast (guidance=6-7, steps=20-25) - ~30s sur CPU
+    - 0.4-0.6: Balanced (guidance=7-8, steps=28-35) - ~1min sur CPU
+    - 0.7-1.0: Best quality (guidance=8-9, steps=40-50) - ~2min sur CPU
     """
     # Clamp temperature to [0, 1]
     temp = max(0.0, min(1.0, temperature))
     
-    # Map temperature to guidance_scale (5.0 to 10.0)
-    guidance_scale = 5.0 + (temp * 5.0)
+    # Map temperature to guidance_scale (6.0 to 9.0) - DreamShaper fonctionne bien dans cette plage
+    guidance_scale = 6.0 + (temp * 3.0)
     
-    # Map temperature to num_inference_steps (30 to 80)
-    num_steps = int(30 + (temp * 50))
+    # Map temperature to num_inference_steps (20 to 50) - Réduit pour CPU
+    num_steps = int(20 + (temp * 30))
     
     return guidance_scale, num_steps
 
@@ -38,7 +38,7 @@ def generate_image(
     prompt: str,
     use_case: str = None,
     style: str = "general",
-    temperature: float = 0.7,
+    temperature: float = 0.5,  # Réduit de 0.7 à 0.5 pour meilleur équilibre vitesse/qualité
     use_rl_optimization: bool = False
 ):
     """
@@ -263,9 +263,9 @@ with gr.Blocks(title="AI Creative Studio", theme=gr.themes.Soft()) as demo:
                         label="🌡️ Qualité (Température)",
                         minimum=0.0,
                         maximum=1.0,
-                        value=0.7,
+                        value=0.5,
                         step=0.1,
-                        info="0.0 = Rapide (30s) | 0.5 = Équilibré (1min) | 1.0 = Meilleure qualité (2-3min)"
+                        info="0.0 = Rapide (~30s, 20 steps) | 0.5 = Équilibré (~1min, 35 steps) | 1.0 = Meilleure qualité (~2min, 50 steps)"
                     )
                     
                     use_rl_opt = gr.Checkbox(
