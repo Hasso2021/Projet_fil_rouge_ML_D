@@ -1,42 +1,42 @@
 """
-Script pour tester si le modèle RL est correctement chargé
+Script pour tester si le modele RL est correctement charge
 """
 import os
 from app.models.rl_agent import RLOptimizer
 
 def test_rl_model():
-    """Test le chargement du modèle RL"""
+    """Test le chargement du modele RL"""
     
     print("="*60)
-    print("🧪 TEST DU MODÈLE RL")
+    print("TEST DU MODELE RL")
     print("="*60)
     
-    # Vérifier que le fichier existe
+    # Verifier que le fichier existe
     model_path = "models/rl_agent.zip"
     if not os.path.exists(model_path):
-        print(f"❌ Modèle introuvable : {model_path}")
-        print("\n💡 Téléchargez d'abord le modèle depuis RunPod !")
-        print("   1. Voir les instructions dans le terminal")
+        print(f"ERREUR: Modele introuvable : {model_path}")
+        print("\nTelecharger d'abord le modele depuis RunPod !")
+        print("   1. Voir les instructions dans RECUPERER_MODELES_RUNPOD.md")
         print("   2. Placer le fichier dans models/rl_agent.zip")
         return False
     
-    # Vérifier la taille
+    # Verifier la taille
     size_mb = os.path.getsize(model_path) / (1024 * 1024)
-    print(f"✅ Modèle trouvé : {model_path} ({size_mb:.2f} MB)")
+    print(f"OK: Modele trouve : {model_path} ({size_mb:.2f} MB)")
     
-    # Tenter de charger le modèle
+    # Tenter de charger le modele
     try:
-        print("\n🔄 Chargement du modèle RL...")
+        print("\nChargement du modele RL...")
         rl_optimizer = RLOptimizer()
         
         if rl_optimizer.model is None:
-            print("❌ Modèle non chargé (model is None)")
+            print("ERREUR: Modele non charge (model is None)")
             return False
         
-        print("✅ Modèle chargé avec succès !")
+        print("OK: Modele charge avec succes !")
         
         # Test d'optimisation simple
-        print("\n🧪 Test d'optimisation d'un prompt simple...")
+        print("\nTest d'optimisation d'un prompt simple...")
         test_prompt = "a cat"
         
         try:
@@ -45,27 +45,27 @@ def test_rl_model():
                 n_iterations=3  # Petit nombre pour test rapide
             )
             
-            print("\n📊 Résultats de l'optimisation :")
+            print("\nResultats de l'optimisation :")
             print(f"   - Prompt original : {result['original_prompt']}")
-            print(f"   - Prompt optimisé : {result['optimized_prompt']}")
-            print(f"   - Amélioration : {result['improvement']:+.2f}")
+            print(f"   - Prompt optimise : {result['optimized_prompt']}")
+            print(f"   - Amelioration : {result['improvement']:+.2f}")
             print(f"   - Score original : {result['original_score']:.2f}")
-            print(f"   - Score optimisé : {result['optimized_score']:.2f}")
+            print(f"   - Score optimise : {result['optimized_score']:.2f}")
             
-            print("\n✅ Le modèle RL fonctionne correctement !")
+            print("\nOK: Le modele RL fonctionne correctement !")
             return True
             
         except Exception as e:
-            print(f"⚠️ Erreur lors de l'optimisation : {e}")
-            print("   Le modèle est chargé mais l'optimisation a échoué")
+            print(f"ATTENTION: Erreur lors de l'optimisation : {e}")
+            print("   Le modele est charge mais l'optimisation a echoue")
             return False
         
     except Exception as e:
-        print(f"❌ Erreur lors du chargement : {e}")
-        print("\n💡 Solutions possibles :")
-        print("   1. Vérifiez que le fichier n'est pas corrompu")
-        print("   2. Vérifiez la compatibilité avec stable-baselines3==2.2.1")
-        print("   3. Ré-entraînez le modèle si nécessaire")
+        print(f"ERREUR: Erreur lors du chargement : {e}")
+        print("\nSolutions possibles :")
+        print("   1. Verifier que le fichier n'est pas corrompu")
+        print("   2. Verifier la compatibilite avec stable-baselines3==2.2.1")
+        print("   3. Re-entrainer le modele si necessaire")
         return False
 
 if __name__ == "__main__":
@@ -73,14 +73,13 @@ if __name__ == "__main__":
     
     print("\n" + "="*60)
     if success:
-        print("✅ TEST RÉUSSI - Modèle RL prêt à l'emploi !")
-        print("\n💡 Vous pouvez maintenant activer l'optimisation RL dans Gradio")
+        print("OK: TEST REUSSI - Modele RL pret a l'emploi !")
+        print("\nVous pouvez maintenant activer l'optimisation RL dans Gradio")
     else:
-        print("❌ TEST ÉCHOUÉ - Veuillez télécharger/corriger le modèle")
-        print("\n📥 Instructions pour télécharger depuis RunPod :")
+        print("ERREUR: TEST ECHOUE - Veuillez telecharger/corriger le modele")
+        print("\nInstructions pour telecharger depuis RunPod :")
         print("   1. Ouvrir Jupyter sur RunPod")
-        print("   2. Créer une cellule avec le code de compression")
-        print("   3. Télécharger l'archive créée")
+        print("   2. Creer une cellule avec le code de compression")
+        print("   3. Telecharger l'archive creee")
         print("   4. Extraire dans models/")
     print("="*60)
-
