@@ -372,7 +372,7 @@ with gr.Blocks(title="AI Creative Studio", theme=gr.themes.Soft()) as demo:
 - **Prompt** : {img.prompt[:100]}{'...' if len(img.prompt) > 100 else ''}
 - **Score** : {img.score:.2f}/10
 - **Dimensions** : {img.width}x{img.height}
-- **Steps** : {img.num_steps}
+- **Steps** : {img.num_inference_steps}
 - **Guidance** : {img.guidance_scale}
 - **RL Optimisé** : {'✅ Oui' if img.use_rl_optimization else '❌ Non'}
 - **Chemin** : `{img.image_path}`
