@@ -129,12 +129,20 @@ async def optimize_prompt(request: OptimizationRequest):
     """
     try:
         rl_optimizer = get_rl_optimizer()
+        if rl_optimizer is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Agent RL non disponible. Stable_baselines3 n'est pas installe."
+            )
+        
         result = rl_optimizer.optimize_prompt(
             base_prompt=request.base_prompt,
             n_iterations=request.n_iterations
         )
         
         return OptimizationResponse(**result)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

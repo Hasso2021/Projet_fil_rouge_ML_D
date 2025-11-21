@@ -1,21 +1,69 @@
 """
-Templates de prompts pour différents cas d'usage
-Adaptés pour générer des contenus optimisés selon le contexte (logo, marketing, game assets, artistic)
+Système de templates de prompts pour optimiser la génération d'images selon le contexte.
+
+CONCEPT:
+--------
+Au lieu de laisser l'utilisateur écrire des prompts complexes, ce module:
+1. Prend un prompt simple de l'utilisateur (ex: "a cat")
+2. Applique un template selon le cas d'usage choisi (logo, marketing, etc.)
+3. Enrichit automatiquement avec des keywords optimisés
+4. Configure les meilleurs paramètres de génération
+
+AVANTAGES:
+----------
+- Simplifie l'expérience utilisateur (pas besoin d'être expert en prompting)
+- Garantit des résultats cohérents et de qualité
+- Optimise automatiquement les paramètres (guidance_scale, steps, etc.)
+- Réduit le besoin d'optimisation RL (70% du travail fait par les templates)
+
+ARCHITECTURE:
+-------------
+UseCase → Style → Template → Prompt enrichi + Paramètres optimisés
+
+Exemple:
+  Input:  use_case="logo", style="minimalist", prompt="a cat"
+  Output: "a cat, logo design, minimalist, clean lines, simple shapes..."
+          + guidance_scale=9.0, steps=50, negative_prompt="..."
+
+CAS D'USAGE SUPPORTÉS:
+----------------------
+- LOGO: Designs de logos professionnels (8 styles)
+- MARKETING: Visuels publicitaires (8 styles)  
+- GAME_ASSETS: Éléments de jeux vidéo (8 styles)
+- ARTISTIC: Art créatif et concept art (8 styles)
+- GENERAL: Sans template, enrichissement minimal
 """
 from typing import Dict, List, Optional, Tuple
 from enum import Enum
 
 
 class UseCase(str, Enum):
-    """Cas d'usage supportés"""
-    LOGO = "logo"
-    MARKETING = "marketing"
-    GAME_ASSETS = "game_assets"
-    ARTISTIC = "artistic"
-    GENERAL = "general"  # Cas par défaut sans template spécifique
+    """
+    Énumération des cas d'usage supportés par le système de templates.
+    
+    Chaque cas d'usage:
+    - A ses propres styles disponibles
+    - Utilise des keywords optimisés spécifiques
+    - Configure des paramètres de génération adaptés
+    """
+    LOGO = "logo"                # Création de logos d'entreprise
+    MARKETING = "marketing"      # Visuels marketing et publicité
+    GAME_ASSETS = "game_assets"  # Assets de jeux vidéo
+    ARTISTIC = "artistic"        # Art créatif et illustrations
+    GENERAL = "general"          # Usage général sans template
 
 
-# Styles disponibles par cas d'usage
+"""
+======================================
+DICTIONNAIRE DES STYLES PAR CAS D'USAGE
+======================================
+Définit les styles disponibles pour chaque cas d'usage.
+Permet de créer des variations dans un même contexte.
+
+Exemple:
+  UseCase.LOGO peut être en style "minimalist", "modern", "vintage"...
+  Chaque style applique des keywords différents mais cohérents avec le cas d'usage.
+"""
 USE_CASE_STYLES: Dict[str, List[str]] = {
     UseCase.LOGO: [
         "minimalist",

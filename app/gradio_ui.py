@@ -191,6 +191,9 @@ def optimize_prompt_only(prompt: str, n_iterations: int = 10):
     """
     try:
         rl_optimizer = get_rl_optimizer()
+        if rl_optimizer is None:
+            return "ERREUR: Agent RL non disponible. Stable_baselines3 n'est pas installe.\n(Fonctionnalite desactivee sur cette plateforme)"
+        
         result = rl_optimizer.optimize_prompt(
             base_prompt=prompt,
             n_iterations=n_iterations

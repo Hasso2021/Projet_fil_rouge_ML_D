@@ -1,19 +1,38 @@
 import os
 from typing import Optional, Dict, Any
-from stable_baselines3 import PPO
-from stable_baselines3.common.callbacks import EvalCallback, CheckpointCallback
 from app.utils.config import settings
-from training.rl_env import PromptOptimizationEnv
+
+# Import optionnel de stable_baselines3 (peut ne pas être disponible sur certains environnements)
+try:
+    from stable_baselines3 import PPO
+    from stable_baselines3.common.callbacks import EvalCallback, CheckpointCallback
+    from training.rl_env import PromptOptimizationEnv
+    RL_AVAILABLE = True
+except ImportError:
+    PPO = None
+    EvalCallback = None
+    CheckpointCallback = None
+    PromptOptimizationEnv = None
+    RL_AVAILABLE = False
+    print("INFO: stable_baselines3 non disponible. L'agent RL est desactive.")
 
 class RLOptimizer:
     """
     Agent RL qui optimise les prompts pour Stable Diffusion.
+    Si stable_baselines3 n'est pas disponible, l'agent est désactivé.
     """
     
     def __init__(self, env: Optional[PromptOptimizationEnv] = None, fast_mode: bool = False):
-        self.env = env or PromptOptimizationEnv(fast_mode=fast_mode)
-        self.model: Optional[PPO] = None
+        self.model = None
+        self.env = None
         self.fast_mode = fast_mode
+        self.available = RL_AVAILABLE
+        
+        if not RL_AVAILABLE:
+            print("WARNING: Agent RL non disponible (stable_baselines3 non installe)")
+            return
+        
+        self.env = env or PromptOptimizationEnv(fast_mode=fast_mode)
         
         # Charger modèle si existe
         if os.path.exists(settings.RL_AGENT_PATH):
@@ -25,9 +44,8 @@ class RLOptimizer:
                 print(f"INFO: Verifiez que le modele existe et est compatible avec stable-baselines3==2.2.1")
                 self.model = None
         else:
-            print(f"ℹ️ Modèle RL non trouvé à {settings.RL_AGENT_PATH}")
+            print(f"INFO: Modele RL non trouve a {settings.RL_AGENT_PATH}")
             print(f"INFO: Entrainez d'abord le modele avec training/train_rl_agent.py")
-            print(f"   ou téléchargez-le depuis Colab (voir WORKFLOW_HYBRIDE.md)")
             self.model = None
     
     def train(self, total_timesteps: int = 10000, save_path: Optional[str] = None):
@@ -38,6 +56,9 @@ class RLOptimizer:
             total_timesteps: Nombre total de steps d'entraînement
             save_path: Chemin pour sauvegarder le modèle
         """
+        if not self.available:
+            raise RuntimeError("Agent RL non disponible (stable_baselines3 non installe)")
+        
         if self.model is None:
             # Créer nouveau modèle PPO
             # Mode rapide : n_steps réduit de 2048 à 512 (gain de vitesse ~4x)
@@ -97,8 +118,11 @@ class RLOptimizer:
         Returns:
             dict: Résultats de l'optimisation
         """
+        if not self.available:
+            raise RuntimeError("Agent RL non disponible (stable_baselines3 non installe)")
+        
         if self.model is None:
-            raise ValueError("Modèle RL non entraîné. Appelez train() d'abord.")
+            raise ValueError("Modele RL non entraine. Appelez train() d'abord.")
         
         # Reset env avec nouveau prompt
         obs, _ = self.env.reset(options={"base_prompt": base_prompt})
@@ -154,10 +178,13 @@ class RLOptimizer:
 # Instance globale (chargée à la demande)
 rl_optimizer: Optional[RLOptimizer] = None
 
-def get_rl_optimizer(fast_mode: bool = False) -> RLOptimizer:
-    """Retourne l'instance globale de l'optimiseur RL."""
+def get_rl_optimizer(fast_mode: bool = False) -> Optional[RLOptimizer]:
+    """
+    Retourne l'instance globale de l'optimiseur RL.
+    Retourne None si stable_baselines3 n'est pas disponible.
+    """
     global rl_optimizer
     if rl_optimizer is None:
         rl_optimizer = RLOptimizer(fast_mode=fast_mode)
-    return rl_optimizer
+    return rl_optimizer if rl_optimizer.available else None
 
