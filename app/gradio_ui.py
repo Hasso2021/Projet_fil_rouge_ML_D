@@ -265,7 +265,7 @@ with gr.Blocks(title="AI Creative Studio", theme=gr.themes.Soft()) as demo:
                         maximum=1.0,
                         value=0.5,
                         step=0.1,
-                        info="0.0 = Rapide (~30s, 20 steps) | 0.5 = Équilibré (~1min, 35 steps) | 1.0 = Meilleure qualité (~2min, 50 steps)"
+                        info="0.0 = Rapide (30s, 20 steps) | 0.5 = Équilibré (1min, 35 steps) | 1.0 = Meilleure qualité (2min, 50 steps)"
                     )
                     
                     use_rl_opt = gr.Checkbox(
@@ -446,9 +446,9 @@ with gr.Blocks(title="AI Creative Studio", theme=gr.themes.Soft()) as demo:
                 
                 ### 💡 Astuces
                 
-                - **Température basse (0.0-0.3)** : Rapide, idéale pour tester des idées (~30 secondes)
-                - **Température moyenne (0.4-0.6)** : Bon compromis qualité/vitesse (~1 minute)
-                - **Température haute (0.7-1.0)** : Meilleure qualité, plus lent (~2-3 minutes)
+                - **Température basse (0.0-0.3)** : Rapide, idéale pour tester des idées (30 secondes)
+                - **Température moyenne (0.4-0.6)** : Bon compromis qualité/vitesse (1 minute)
+                - **Température haute (0.7-1.0)** : Meilleure qualité, plus lent (2-3 minutes)
                 - **Optimisation RL** : Activez-la pour de meilleurs résultats automatiques
                 
                 ### ⚠️ Note importante
